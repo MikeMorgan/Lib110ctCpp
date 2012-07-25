@@ -1,8 +1,9 @@
 #include <sstream>
-#include <SDL/SDL_Thread.h>
 #include <cstdlib>
 #include <math.h>
 #include "Lib110ct.h"
+
+
 
 
 SDL_Surface * FormattedChar::getSurface()
@@ -13,17 +14,19 @@ SDL_Surface * FormattedChar::getSurface()
 
 FormattedChar::FormattedChar():font(0)
 {
-    cl = {255,255,255};
-    bg = {0,0,0};
-    c = {' '};
+    cl.r = cl.g = cl.b = 255;
+    bg.r = bg.g = bg.b = 0;
+    c[0] = ' ';
+    c[1] = '\0';
     Surf = SDL_CreateRGBSurface(0, 10, 16, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
 }
 
 FormattedChar::FormattedChar(TTF_Font * ft)
 {
-    cl = {255,255,255};
-    bg = {0,0,0};
-    c = {' '};
+    cl.r = cl.g = cl.b = 255;
+    bg.r = bg.g = bg.b = 0;
+    c[0] = ' ';
+    c[1] = '\0';
     font = ft;
     TTF_SizeText(ft,"m",&width, &height);
     Surf = SDL_CreateRGBSurface(0, width, height, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
@@ -39,13 +42,18 @@ void FormattedChar::setFont(TTF_Font * ft)
 
 Win110ct::Win110ct(int width, int height, int fontpitch)
 {
-    //fontsize = 16;
-    winRect = {0,0,width,height};
-
+    winRect.x = 0;
+    winRect.y = 0;
+    winRect.w = width;
+    winRect.h = height;
+    t = 0;
 
     SDL_Init( SDL_INIT_EVERYTHING );
 
-    screen = SDL_SetVideoMode( width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF );
+    if(SDL_GetVideoInfo()->hw_available == 1)
+        screen = SDL_SetVideoMode( width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF );
+    else
+        screen = SDL_SetVideoMode( width, height, 32, SDL_SWSURFACE | SDL_DOUBLEBUF );
 
     SDL_WM_SetCaption("110ct Console",NULL);
 
@@ -67,10 +75,10 @@ Win110ct::Win110ct(int width, int height, int fontpitch)
             scrBuff[i][j].setFont(font);
     }
 
-    textColour = {255,255,255};
-    backColour = {0,0,0};
+    textColour.r = textColour.g = textColour.b = 255;
+    backColour.r = backColour.g = backColour.b = 0;
     echo = true;
-    waiting = got = false;
+    waiting = got = turtling = false;
     SDL_EnableUNICODE(1);
     xpos = ypos = 0;
 
@@ -84,6 +92,7 @@ Win110ct::~Win110ct()
     for(int i=0; i<nlines; ++i)
         delete [] scrBuff[i];
     delete [] scrBuff;
+    if(t) delete t;
     SDL_FreeSurface(textSurf);
     SDL_FreeSurface(backg);
     SDL_FreeSurface(screen);
@@ -91,14 +100,14 @@ Win110ct::~Win110ct()
     SDL_Quit();
 }
 
-void Win110ct::apply_surface( int x, int y, SDL_Surface* source, SDL_Surface* destination, SDL_Rect* clip)
+void Win110ct::applySurface( int x, int y, SDL_Surface* src, SDL_Surface* dest, SDL_Rect* clip)
 {
-    SDL_Rect offset;
+    SDL_Rect r;
 
-    offset.x = x;
-    offset.y = y;
+    r.x = x;
+    r.y = y;
 
-    SDL_BlitSurface( source, clip, destination, &offset );
+    SDL_BlitSurface(src, clip, dest, &r);
 }
 
 bool Win110ct::checkInput()
@@ -176,11 +185,6 @@ char Win110ct::getchar()
                 quit = true;
                 break;
             }
-            /*else if(event.key.keysym.unicode >= (Uint16)'!' &&
-                    event.key.keysym.unicode <= (Uint16)'~' ||
-                    event.key.keysym.unicode == (Uint16)'£' ||
-                    event.key.keysym.unicode == (Uint16)'¬' ||
-                    event.key.keysym.unicode == (Uint16)' ')*/
             else
             {
                 input = (char) event.key.keysym.unicode;
@@ -190,8 +194,6 @@ char Win110ct::getchar()
             }
             quit = true;
         }
-
-
     }
 
     if(echo)
@@ -212,11 +214,11 @@ void Win110ct::putchar(char c)
 
 void Win110ct::bufferChar()
 {
-    if(ypos >= nlines || xpos >= ncols) return;
+    if(ypos >= nlines || xpos >= ncols || ypos < 0  || xpos < 0) return;
     SDL_Rect charRect = {xpos*fontWidth, ypos*fontHeight, fontWidth, fontHeight};
     SDL_FillRect(textSurf, &charRect,0x00000000);
 
-    apply_surface(xpos*fontWidth, ypos*fontHeight,scrBuff[ypos][xpos].getSurface(), textSurf);
+    applySurface(xpos*fontWidth, ypos*fontHeight,scrBuff[ypos][xpos].getSurface(), textSurf);
 }
 
 void Win110ct::clearChars(int nChars, int xoffset, int yoffset)
@@ -259,7 +261,7 @@ void Win110ct::addChar(char c)
             }
         }
 
-        else if(xpos<ncols && ypos < nlines)
+        else if(xpos >= 0 && ypos >= 0 && xpos<ncols && ypos < nlines)
         {
             scrBuff[ypos][xpos] = c;
             scrBuff[ypos][xpos].setFore(textColour);
@@ -271,9 +273,18 @@ void Win110ct::addChar(char c)
 void Win110ct::render()
 {
     SDL_FillRect(screen, &winRect, 0xFF000000);
-    apply_surface( 0, 0, backg , screen );
 
-    apply_surface( 0, 0, textSurf , screen );
+    applySurface( 0, 0, backg , screen );
+    applySurface( 0, 0, textSurf , screen );
+
+    if(turtling)
+    {
+        SDL_Colour col = t->getColour();
+        circleRGBA(screen, t->getx(), t->gety(), 8, col.r, col.g, col.b, 208);
+        double x1 = t->getx() + sin(t->getDirection())*13;
+        double y1 = t->gety() + cos(t->getDirection())*13;
+        lineRGBA(screen, t->getx(), t->gety(), x1, y1, col.r, col.g, col.b, 208);
+    }
 
     SDL_Flip(screen);
 }
@@ -282,14 +293,19 @@ void Win110ct::renderRect(int x, int y, int w, int h)
 {
     SDL_Rect r = {x,y,w,h};
     SDL_FillRect(screen, &r, 0xFF000000);
-    apply_surface( 0, 0, backg , screen, &r );
+    applySurface( 0, 0, backg , screen, &r );
 
-    apply_surface( 0, 0, textSurf , screen, &r );
+    applySurface( 0, 0, textSurf , screen, &r );
 
     SDL_Flip(screen);
 }
 
-
+Turtle * Win110ct::getTurtle()
+{
+    turtling = true;
+    t = new Turtle(this);
+    return t;
+}
 
 Win110ct& Win110ct::operator >> (char& c)
 {
@@ -328,7 +344,7 @@ Win110ct& Win110ct::operator >> (double& n)
 
 Win110ct& Win110ct::operator << (std::string& out)
 {
-    for(int i=0; i<out.size(); ++i)
+    for(std::size_t i=0; i<out.size(); ++i)
         putchar(out[i]);
     render();
     return *this;
@@ -386,7 +402,7 @@ void Win110ct::clearBackRect(int x, int y, int width, int height)
 
 void Win110ct::clearBack()
 {
-    clearBackRect(0,0,640,480);
+    clearBackRect(0,0,winRect.w,winRect.h);
 }
 
 void Win110ct::clearChar(int xoffset,int yoffset)
@@ -394,19 +410,31 @@ void Win110ct::clearChar(int xoffset,int yoffset)
     clearChars(1,xoffset, yoffset);
 }
 
-Turtle::Turtle(Win110ct * host):x(320),y(240),direction(0),cl({255,255,255}),drawing(false)
+Turtle::Turtle(Win110ct * host):direction(0),drawing(false)
 {
+    x = host->winRect.w/2;
+    y = host->winRect.h/2;
+    cl.r = cl.g = cl.b = 255;
     win = host;
+    pauseSize = 0;
 }
 
 void Turtle::moveForward(double d)
 {
+    static Uint32 t = SDL_GetTicks();
+
     double x1 = x + d*sin(direction);
     double y1 = y + d*cos(direction);
 
     if(drawing)
     {
         lineRGBA(win->backg, x, y, x1, y1, cl.r, cl.b, cl.g, 208);
+        if(SDL_GetTicks() > t + 1000/60)// limit redraws to 60Hz (standard monitor refresh rate)
+        {
+            win->render();
+            t = SDL_GetTicks();
+        }
+        SDL_Delay(pauseSize);
     }
 
     x = x1;
