@@ -87,6 +87,53 @@ Win110ct::Win110ct(int width, int height, int fontpitch)
 
 }
 
+Win110ct::Win110ct(std::string fontFile, int width, int height, int fontpitch)
+{
+    winRect.x = 0;
+    winRect.y = 0;
+    winRect.w = width;
+    winRect.h = height;
+    t = 0;
+
+    SDL_Init( SDL_INIT_EVERYTHING );
+
+    if(SDL_GetVideoInfo()->hw_available == 1)
+        screen = SDL_SetVideoMode( width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF );
+    else
+        screen = SDL_SetVideoMode( width, height, 32, SDL_SWSURFACE | SDL_DOUBLEBUF );
+
+    SDL_WM_SetCaption("110ct Console",NULL);
+
+    if( TTF_Init() == -1 )
+    {
+        return;
+    }
+    font = TTF_OpenFont(fontFile.c_str() ,fontpitch);
+    TTF_SizeText(font,"m",&fontWidth, &fontHeight);
+    ++fontHeight;
+    ncols = winRect.w/fontWidth - 1;
+    nlines = winRect.h/fontHeight;
+
+    scrBuff = new FormattedChar*[nlines];
+    for(int i=0; i<nlines; ++i)
+    {
+        scrBuff[i] = new FormattedChar[ncols];
+        for(int j=0; j<ncols; ++j)
+            scrBuff[i][j].setFont(font);
+    }
+
+    textColour.r = textColour.g = textColour.b = 255;
+    backColour.r = backColour.g = backColour.b = 0;
+    echo = true;
+    waiting = got = turtling = false;
+    SDL_EnableUNICODE(1);
+    xpos = ypos = 0;
+
+    backg = SDL_CreateRGBSurface( 0, width, height, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+    textSurf =  SDL_CreateRGBSurface( 0, width, height, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+
+}
+
 Win110ct::~Win110ct()
 {
     for(int i=0; i<nlines; ++i)
@@ -281,8 +328,8 @@ void Win110ct::render()
     {
         SDL_Colour col = t->getColour();
         circleRGBA(screen, t->getx(), t->gety(), 8, col.r, col.g, col.b, 208);
-        double x1 = t->getx() + sin(t->getDirection())*13;
-        double y1 = t->gety() + cos(t->getDirection())*13;
+        double x1 = t->getx() + sin(t->getDirection())*12;
+        double y1 = t->gety() + cos(t->getDirection())*12;
         lineRGBA(screen, t->getx(), t->gety(), x1, y1, col.r, col.g, col.b, 208);
     }
 
@@ -427,18 +474,16 @@ void Turtle::moveForward(double d)
     double y1 = y + d*cos(direction);
 
     if(drawing)
-    {
-        lineRGBA(win->backg, x, y, x1, y1, cl.r, cl.b, cl.g, 208);
-        if(SDL_GetTicks() > t + 1000/60)// limit redraws to 60Hz (standard monitor refresh rate)
-        {
-            win->render();
-            t = SDL_GetTicks();
-        }
-        SDL_Delay(pauseSize);
-    }
+        lineRGBA(win->backg, x, y, x1, y1, cl.r, cl.g, cl.b, 208);
 
     x = x1;
     y = y1;
+    if(SDL_GetTicks() > t + 1000/60)// limit redraws to 60Hz (standard monitor refresh rate)
+    {
+        win->render();
+        t = SDL_GetTicks();
+    }
+    SDL_Delay(pauseSize);
 }
 
 void Turtle::turn(double degrees)

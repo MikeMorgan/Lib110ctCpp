@@ -50,7 +50,6 @@ int main( int argc, char* args[] )
 
     t->setPosition(800, 100);
     t->setColour({255,64,64});
-    t->setSpeed(0);
     win.hideTurtle();
 
     for(int i=1; i<=d; ++i)
