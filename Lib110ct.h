@@ -60,7 +60,6 @@ private:
     int xpos, ypos, startx, starty;
 
     friend class Turtle;
-
     Turtle * t;
 
  public:
@@ -74,6 +73,19 @@ private:
     *   @param  fontPitch   The pitch of the console font, 16
     */
     Win110ct(int width=1024, int height=768, int fontPitch=16);
+
+    /**
+    *   Builds a new console window which uses the specified fontFile for text output
+    *   (must be a truetype ".ttf" font, preferably monospaced).
+    *   Width and height should represent an appropriate video mode if specified
+    *   i.e. 1024 x 768, 800 x 600, 640 x 480 etc
+    *
+    *   @param  fontFile    The path to the fontfile, including filename and extension
+    *   @param  width       The width of the console in pixels, default 1024
+    *   @param  height      The height of the console in pixels, default 768
+    *   @param  fontPitch   The pitch of the console font, default 16
+    */
+    Win110ct(std::string fontFile, int width=1024, int height=768, int fontPitch=16);
 
     /**
     *   Overloaded input methods for ints, doubles, chars and strings.
@@ -95,8 +107,6 @@ private:
     Win110ct& operator << (std::string& output);
     Win110ct& operator << (int output);
     Win110ct& operator << (double output);
-
-
 
     /**
     *   Reads a single character from the keyboard.
