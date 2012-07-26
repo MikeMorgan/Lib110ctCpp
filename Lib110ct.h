@@ -2,7 +2,7 @@
 #define LIB110CT_H_INCLUDED
 
 #include <SDL/SDL.h>
-#include <SDL_ttf.h>
+#include <SDL/SDL_ttf.h>
 #include <SDL/SDL_gfxPrimitives.h>
 #include <string>
 #include <time.h>
@@ -22,6 +22,7 @@ public:
     void setFont(TTF_Font * ft);
     void setFore(SDL_Color col){cl=col;}
     void setBack(SDL_Color col){bg=col;}
+    SDL_Color getBack(){return bg;}
     void operator = (char ch) {c[0]=ch;}
     char get(){return c[0];}
     SDL_Surface * getSurface();
@@ -110,10 +111,11 @@ private:
 
     /**
     *   Reads a single character from the keyboard.
-    *   Main usage in waiting for user keypress since return variable may be omitted
+    *   Main usage in waiting for user keypress since return variable may be ignored
     *   @return The first key pressed by the user
     */
     char getchar();
+
     /**
     *   Calls to this will query whether the user has pressed a key yet
     *   This enables the calling program to continue with other tasks while waiting for input
@@ -128,7 +130,7 @@ private:
     void setTextColour(SDL_Color c){textColour = c;}
 
     /**
-    *   Sets the background colour for the console
+    *   Sets the background colour for the console text
     *   @param  The background colour
     */
     void setBackColour(SDL_Color c){backColour = c;};
@@ -172,7 +174,7 @@ private:
     SDL_Surface * getGraphics(){return backg;}
 
     /**
-    *   Returns a pointer to an MSWLogo stye turtle which draws in this window
+    *   Returns a pointer to an MSWLogo stye turtle which draws on the window's background
     *   @return pointer to the turtle
     */
     Turtle * getTurtle();
@@ -211,7 +213,7 @@ private:
     *   Clears the character space at the current cursor position.
     *   Offsets can be used for correction if it misses a bit!
     *   @param  xoffset adjusts the x position of the clearing rectangle (in pixels)
-    *   @param  yoffset adjusts the x position of the clearing rectangle (in pixels)
+    *   @param  yoffset adjusts the y position of the clearing rectangle (in pixels)
     */
     void clearChar(int xoffset = 0,int yoffset = 0);
 
@@ -220,7 +222,7 @@ private:
     *   Offsets can be used for correction if it misses a bit!
     *   @param  nChars  the number of character spaces to be cleared
     *   @param  xoffset adjusts the x position of the clearing rectangle (in pixels)
-    *   @param  yoffset adjusts the x position of the clearing rectangle (in pixels)
+    *   @param  yoffset adjusts the y position of the clearing rectangle (in pixels)
     */
     void clearChars(int nChars,int xoffset = 0,int yoffset = 0);
 
@@ -367,6 +369,5 @@ class Stopwatch
     */
     void reset(){startTime = SDL_GetTicks(); elapsed = 0;}
 };
-
 
 #endif // LIB110CT_H_INCLUDED

@@ -8,7 +8,7 @@
 
 SDL_Surface * FormattedChar::getSurface()
 {
-    Surf = TTF_RenderText_Shaded( font, c, cl, bg);
+    Surf = TTF_RenderText_Blended( font, c, cl);
     return Surf;
 }
 
@@ -262,8 +262,10 @@ void Win110ct::putchar(char c)
 void Win110ct::bufferChar()
 {
     if(ypos >= nlines || xpos >= ncols || ypos < 0  || xpos < 0) return;
-    SDL_Rect charRect = {xpos*fontWidth, ypos*fontHeight, fontWidth, fontHeight};
-    SDL_FillRect(textSurf, &charRect,0x00000000);
+    SDL_Rect charRect = {xpos*fontWidth, ypos*fontHeight, fontWidth+1, fontHeight};
+    SDL_Color cl = scrBuff[ypos][xpos].getBack();
+    Uint32 c = 0xDD000000 | cl.b << 16 | cl.g << 8 | cl.r;
+    SDL_FillRect(textSurf, &charRect, c);
 
     applySurface(xpos*fontWidth, ypos*fontHeight,scrBuff[ypos][xpos].getSurface(), textSurf);
 }
